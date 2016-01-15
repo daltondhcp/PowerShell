@@ -2,17 +2,17 @@
 param (
     [switch]$ForceLogin,
     [switch]$DoItOverAgain,
-    [switch]$Win10Fix
+    [switch]$DownloadWin10
 )
-#Set-AzureRMVMExtension –ResourceGroupName “rg1” -Name "JsonADDomainExtension" -Publisher "Microsoft.Compute" -TypeHandlerVersion "1.0" -Settings '{ "Name" : "workgroup1", "User" : "domain\test", "Restart" : "false", "Options" : 1}' -VMName “testvm” -ProtectedSettings '{"password": "pass"}'
-
 #Define variables and Uri's to scripts/assets
-$RGName = "AteaEMS"
-$Location = "North Europe"
-$TemplateUri = "https://365lab.blob.core.windows.net/scripts/azuredeploy.json"
-$FinalizeScript = "https://365lab.blob.core.windows.net/scripts/Finalize-AteaEMSVM.ps1"
-$DSCAssetLocation = "https://threesixfivelab.blob.core.windows.net/scripts/"
-Import-Module Azur* -Verbose:$false
+$RGName = 'AteaEMS'
+$Location = 'North Europe'
+$TemplateUri = 'https://raw.githubusercontent.com/daltondhcp/PowerShell/master/Azure/Atea/EMS/azuredeploy-ateaems.json'
+$DSCAssetLocation = 'ahttps://raw.githubusercontent.com/daltondhcp/PowerShell/master/Azure/Atea/EMS/'
+$DomainName = 'corp.tp2b.com'
+$adminUserName = 'sysadmin'
+$adminPassword = 'Pa$$w0rd'
+
 #Verify Azure PowerShell version 
 $AzureModule = Get-Module -ListAvailable AzureRM.Compute -verbose:$false
 if ($Azuremodule.Version.Major -lt 1) {
@@ -41,67 +41,45 @@ try {
     }
 
     #Check if storage account exists , generate new if not.
-    #Check if storage account exists , generate new if not.
     $StorageAccount = Get-AzureRmStorageAccount | Where-Object {$_.StorageAccountName -like "atea*"} -ErrorAction Ignore
 
     if ($StorageAccount) {
+        #If storage account with the prefix exist, use that.
         $DNSName = $StorageAccount.StorageAccountName
-        if ($Win10Fix) {
-            Write-Verbose "Trying to start DC01..."
-            Start-AzureRmVM -Name DC01 -ResourceGroupName $RGName 
-            $blobName = "Microsoft.Compute/Images/vhds/template-osDisk.e00e29d5-eb33-4227-99a0-556c8e691bf3.vhd" 
-            # Source Storage Account Information #
-            $sourceStorageAccountName = "365lab"
-            $sourceKey = "IEg+b7wPfW9I4nvPQa6g14kSOwBcnnyLxKiy8muDKHtUER+V0XlQcMDO4b7D/jy77yGxGj6UKANXh42vvKPOUA=="
-            $sourceContext = New-AzureStorageContext –StorageAccountName $sourceStorageAccountName -StorageAccountKey $sourceKey  
-            $sourceContainer = "system"
-
-            # Destination Storage Account Information #
-            $destinationStorageAccountName = (Get-AzureRmStorageAccount | Where-Object {$_.StorageAccountName -like "atea*"}).StorageAccountName
-            $destinationKey = (Get-AzureRmStorageAccountKey -Name $destinationStorageAccountName -ResourceGroupName $RGName).Key1
-            $destinationContext = New-AzureStorageContext –StorageAccountName $destinationStorageAccountName -StorageAccountKey $destinationKey  
-
-            # Create the destination container #
-            $destinationContainerName = "destinationvhds"
-            New-AzureStorageContainer -Name $destinationContainerName -Context $destinationContext 
-
-            # Copy the blob # 
-            $blobCopy = Start-AzureStorageBlobCopy -DestContainer $destinationContainerName `
-                                -DestContext $destinationContext `
-                                -SrcBlob $blobName `
-                                -Context $sourceContext `
-                                -SrcContainer $sourceContainer
-            while (($blobCopy | Get-AzureStorageBlobCopyState).Status -eq "Pending") {
-                Start-Sleep -Seconds 30
-                $blobCopy | Get-AzureStorageBlobCopyState
-            }
-        }
     } else {
+        #Generate DNS name/storage account name if not exists based on the resource group name and a part of a guid
         $DNSName = "{0}{1}" -f $rgname.ToLower(),[guid]::NewGuid().guid.split("-")[0]
-        New-AzureRmStorageAccount -ResourceGroupName $RGName -Name $DNSName -Type Standard_LRS -Location $Location -Verbose
+        #Create a storage account with the required properties
+        New-AzureRmStorageAccount -ResourceGroupName $RGName `
+                                  -Name $DNSName -Type Standard_LRS `
+                                  -Location $Location
         Start-Sleep -Seconds 15
+        #region copy Windows 10 media from other storage account to the newly created. 
+        #This is needed since Windows 10 SKU's only are available in MSDN subscriptions.
         $blobName = "Microsoft.Compute/Images/vhds/template-osDisk.e00e29d5-eb33-4227-99a0-556c8e691bf3.vhd" 
-        # Source Storage Account Information #
+        # Source Storage Account Information with Windows 10 media
         $sourceStorageAccountName = "365lab"
-        $sourceKey = "IEg+b7wPfW9I4nvPQa6g14kSOwBcnnyLxKiy8muDKHtUER+V0XlQcMDO4b7D/jy77yGxGj6UKANXh42vvKPOUA=="
+        $sourceKey = ""
         $sourceContext = New-AzureStorageContext –StorageAccountName $sourceStorageAccountName -StorageAccountKey $sourceKey  
         $sourceContainer = "system"
 
-        # Destination Storage Account Information #
+        # Destination Storage Account Information 
         $destinationStorageAccountName = (Get-AzureRmStorageAccount | Where-Object {$_.StorageAccountName -like "atea*"}).StorageAccountName
         $destinationKey = (Get-AzureRmStorageAccountKey -Name $destinationStorageAccountName -ResourceGroupName $RGName).Key1
         $destinationContext = New-AzureStorageContext –StorageAccountName $destinationStorageAccountName -StorageAccountKey $destinationKey  
 
-        # Create the destination container #
+        # Create the destination container to store the VHD.
         $destinationContainerName = "destinationvhds"
         New-AzureStorageContainer -Name $destinationContainerName -Context $destinationContext 
 
-        # Copy the blob # 
+        # Copy the blob from the source to the destination.
         $blobCopy = Start-AzureStorageBlobCopy -DestContainer $destinationContainerName `
                             -DestContext $destinationContext `
                             -SrcBlob $blobName `
                             -Context $sourceContext `
                             -SrcContainer $sourceContainer
+        
+        #Wait for the copy to complete before continue.
         while (($blobCopy | Get-AzureStorageBlobCopyState).Status -eq "Pending") {
             Start-Sleep -Seconds 30
             $blobCopy | Get-AzureStorageBlobCopyState
@@ -109,36 +87,32 @@ try {
 
     }  
 
-
-
     #Create deployment from json Template
     $parameters = @{
-                "PublicDNSName"="$DNSName"
-                "NewStorageAccount"="$DNSName"
-                "DOmainName"="corp.tp2b.com"
-                "adminUserName"='sysadmin'
-                "adminPassword"='Atea2016!'
-                "assetLocation"=$DSCAssetLocation
+                "PublicDNSName" = $DNSName
+                "NewStorageAccount" = $DNSName
+                "DomainName" = $DomainName
+                "adminUserName" = $adminUserName
+                "adminPassword" = $adminPassword
+                "assetLocation" = $DSCAssetLocation
     }
     Write-Verbose "Will start deployment $DNSName in $RGName ($Location)"
     $GroupDeploymentHt = @{
         Name = "AteaEMS"
         ResourceGroupName = "$RGName"
-        #TemplateFile = "C:\Users\Johan\Desktop\Temp\azuredeploy.json"
+        #TemplateFile = "C:\Users\Johan\Desktop\Temp\azuredeploy-ateaems.json"
         TemplateParameterObject = $parameters 
         TemplateUri = $TemplateUri
     }
-    New-AzureRmResourceGroupDeployment @GroupDeploymentHt -Verbose -ErrorAction Stop 
-
-    #Customize vm with custom scripts from finalization script
+    New-AzureRmResourceGroupDeployment @GroupDeploymentHt -ErrorAction Stop 
+t
     $AzureVMs = Get-AzureRmVM 
-    
-    #Stop all VM's
+    #Stop all VM's after deployment
     $AzureVMs | ForEach-Object -Process {
         Write-Verbose "Stopping vm $($_.Name)"
         $_ | Stop-AzureRmVM -Force -ErrorAction Stop
     } 
 } catch {
-    Write-Warning "An error occured. The script can safely be restared and will resume where it left off.`r`n$_"
+    Write-Warning "An error occured. The script can safely be restarted and will resume where it left off.`r`n$_"
 
 } 

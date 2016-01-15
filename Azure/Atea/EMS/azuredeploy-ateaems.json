@@ -337,7 +337,7 @@
         "typeHandlerVersion": "1.4",
         "settings": {
             "fileUris": [
-            "https://365lab.blob.core.windows.net/scripts/Finalize-AteaEMSVM.ps1"
+            "[concat(parameters('assetLocation'),'Finalize-AteaEMSVM.ps1')]"
         ],
         "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted -File Finalize-AteaEMSVM.ps1"
         }
@@ -497,7 +497,7 @@
         "typeHandlerVersion": "1.4",
         "settings": {
             "fileUris": [
-            "https://365lab.blob.core.windows.net/scripts/Finalize-AteaEMSVM.ps1"
+            "[concat(parameters('assetLocation'),'Finalize-AteaEMSVM.ps1')]"
         ],
         "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted -File Finalize-AteaEMSVM.ps1"
         }
@@ -621,7 +621,7 @@
         "typeHandlerVersion": "1.4",
         "settings": {
             "fileUris": [
-            "https://365lab.blob.core.windows.net/scripts/Finalize-AteaEMSVM.ps1"
+            "[concat(parameters('assetLocation'),'Finalize-AteaEMSVM.ps1')]"
         ],
         "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted -File Finalize-AteaEMSVM.ps1"
         }
@@ -743,7 +743,7 @@
         "typeHandlerVersion": "1.4",
         "settings": {
             "fileUris": [
-             "https://365lab.blob.core.windows.net/scripts/Finalize-AteaEMSVM.ps1"
+             "[concat(parameters('assetLocation'),'Finalize-AteaEMSVM.ps1')]"
         ],
         "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted -File Finalize-AteaEMSVM.ps1"
         }
