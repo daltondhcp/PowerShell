@@ -2,7 +2,7 @@
 param (
     [switch]$ForceLogin,
     [switch]$DoItOverAgain,
-    [switch]$DownloadWin10
+    [switch]$DownloadWin10VHD
 )
 #Define variables and Uri's to scripts/assets
 $RGName = 'AteaEMS'
@@ -53,38 +53,40 @@ try {
         New-AzureRmStorageAccount -ResourceGroupName $RGName `
                                   -Name $DNSName -Type Standard_LRS `
                                   -Location $Location
-        Start-Sleep -Seconds 15
-        #region copy Windows 10 media from other storage account to the newly created. 
-        #This is needed since Windows 10 SKU's only are available in MSDN subscriptions.
-        $blobName = "Microsoft.Compute/Images/vhds/template-osDisk.e00e29d5-eb33-4227-99a0-556c8e691bf3.vhd" 
-        # Source Storage Account Information with Windows 10 media
-        $sourceStorageAccountName = "365lab"
-        $sourceKey = ""
-        $sourceContext = New-AzureStorageContext –StorageAccountName $sourceStorageAccountName -StorageAccountKey $sourceKey  
-        $sourceContainer = "system"
+        #Download Windows 10 to storage account if that switch have been used
+        if ($DownloadWin10VHD) {
+            Start-Sleep -Seconds 15
+            #region copy Windows 10 media from other storage account to the newly created. 
+            #This is needed since Windows 10 SKU's only are available in MSDN subscriptions.
+            $blobName = "Microsoft.Compute/Images/vhds/template-osDisk.e00e29d5-eb33-4227-99a0-556c8e691bf3.vhd" 
+            # Source Storage Account Information with Windows 10 media
+            $sourceStorageAccountName = "365lab"
+            $sourceKey = ""
+            $sourceContext = New-AzureStorageContext –StorageAccountName $sourceStorageAccountName -StorageAccountKey $sourceKey  
+            $sourceContainer = "system"
 
-        # Destination Storage Account Information 
-        $destinationStorageAccountName = (Get-AzureRmStorageAccount | Where-Object {$_.StorageAccountName -like "atea*"}).StorageAccountName
-        $destinationKey = (Get-AzureRmStorageAccountKey -Name $destinationStorageAccountName -ResourceGroupName $RGName).Key1
-        $destinationContext = New-AzureStorageContext –StorageAccountName $destinationStorageAccountName -StorageAccountKey $destinationKey  
+            # Destination Storage Account Information 
+            $destinationStorageAccountName = (Get-AzureRmStorageAccount | Where-Object {$_.StorageAccountName -like "atea*"}).StorageAccountName
+            $destinationKey = (Get-AzureRmStorageAccountKey -Name $destinationStorageAccountName -ResourceGroupName $RGName).Key1
+            $destinationContext = New-AzureStorageContext –StorageAccountName $destinationStorageAccountName -StorageAccountKey $destinationKey  
 
-        # Create the destination container to store the VHD.
-        $destinationContainerName = "destinationvhds"
-        New-AzureStorageContainer -Name $destinationContainerName -Context $destinationContext 
+            # Create the destination container to store the VHD.
+            $destinationContainerName = "destinationvhds"
+            New-AzureStorageContainer -Name $destinationContainerName -Context $destinationContext 
 
-        # Copy the blob from the source to the destination.
-        $blobCopy = Start-AzureStorageBlobCopy -DestContainer $destinationContainerName `
-                            -DestContext $destinationContext `
-                            -SrcBlob $blobName `
-                            -Context $sourceContext `
-                            -SrcContainer $sourceContainer
+            # Copy the blob from the source to the destination.
+            $blobCopy = Start-AzureStorageBlobCopy -DestContainer $destinationContainerName `
+                                -DestContext $destinationContext `
+                                -SrcBlob $blobName `
+                                -Context $sourceContext `
+                                -SrcContainer $sourceContainer
         
-        #Wait for the copy to complete before continue.
-        while (($blobCopy | Get-AzureStorageBlobCopyState).Status -eq "Pending") {
-            Start-Sleep -Seconds 30
-            $blobCopy | Get-AzureStorageBlobCopyState
+            #Wait for the copy to complete before continue.
+            while (($blobCopy | Get-AzureStorageBlobCopyState).Status -eq "Pending") {
+                Start-Sleep -Seconds 30
+                $blobCopy | Get-AzureStorageBlobCopyState
+            }
         }
-
     }  
 
     #Create deployment from json Template

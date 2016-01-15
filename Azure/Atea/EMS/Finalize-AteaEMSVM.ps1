@@ -1,4 +1,5 @@
 ﻿ # Install mandatory features on all machines
+ #tHE MOST IMPORTANT ONE!!
  Add-WindowsFeature Telnet-Client
  New-Item -ItemType Directory -Path C:\Temp -Force
  
