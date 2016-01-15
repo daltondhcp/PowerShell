@@ -8,7 +8,7 @@ param (
 $RGName = 'AteaEMS'
 $Location = 'North Europe'
 $TemplateUri = 'https://raw.githubusercontent.com/daltondhcp/PowerShell/master/Azure/Atea/EMS/azuredeploy-ateaems.json'
-$DSCAssetLocation = 'ahttps://raw.githubusercontent.com/daltondhcp/PowerShell/master/Azure/Atea/EMS/'
+$DSCAssetLocation = 'https://raw.githubusercontent.com/daltondhcp/PowerShell/master/Azure/Atea/EMS/'
 $DomainName = 'corp.tp2b.com'
 $adminUserName = 'sysadmin'
 $adminPassword = 'Pa$$w0rd'
