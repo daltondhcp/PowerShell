@@ -53,7 +53,7 @@
     },
     "assetLocation": {
       "type": "string",
-      "defaultValue": "https://github.com/Azure/azure-quickstart-templates/raw/master/201-vm-domain-join/",
+      "defaultValue": "https://somelocation",
       "metadata": {
         "description": "The location of resources such as templates and DSC modules that the script is dependent"
       }
