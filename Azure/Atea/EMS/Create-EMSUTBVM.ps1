@@ -107,7 +107,7 @@ try {
         TemplateUri = $TemplateUri
     }
     New-AzureRmResourceGroupDeployment @GroupDeploymentHt -ErrorAction Stop 
-t
+
     $AzureVMs = Get-AzureRmVM 
     #Stop all VM's after deployment
     $AzureVMs | ForEach-Object -Process {
